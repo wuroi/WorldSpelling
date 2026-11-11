@@ -1,0 +1,22 @@
+# 单词默写 · PWA 版
+
+## 文件说明
+- index.html            主页面（已加 manifest / 图标 / service worker）
+- manifest.webmanifest  应用信息，决定桌面图标和名字
+- sw.js                 离线缓存，断网也能开
+- icons/                图标（192 / 512 / 苹果 180 / favicon）
+
+## 怎么用
+1. 把这整个文件夹上传到一个支持 HTTPS 的静态站点（GitHub Pages、Cloudflare Pages、Vercel 都行）。
+   例：GitHub 新建仓库 → 上传全部文件 → Settings → Pages → 分支选 main，根目录。
+   几分钟后得到 https://用户名.github.io/仓库名/ 这样的地址。
+2. 手机浏览器打开这个地址。
+3. 安卓 Chrome：右上角菜单 →「安装应用」/「添加到主屏幕」。
+   苹果 Safari：底部分享 →「添加到主屏幕」。
+4. 之后从桌面图标打开，全屏、没有地址栏，断网也能用。
+
+## 注意
+- 词存在浏览器 localStorage 里，跟着「地址」走。
+  原来用文件直接打开存过的词不会自动过来：先在旧版点「导出备份」，新版里再导入。
+- 以后改了 index.html，把 sw.js 里的 CACHE 名字改成 danci-v2，手机才会拿到新版。
+- 只有 localhost 或 HTTPS 才能安装，http://局域网IP 不行，只能当普通网页看。

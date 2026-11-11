@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<!--
+  单词默写 · 作者：凪屿
+  给自己用的小工具，词都存本地，不用联网。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>单词默写</title>
+<meta name="theme-color" content="#f7f4ef">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="单词默写">
+<meta name="format-detection" content="telephone=no">
+
+<style>
+  :root{
+    --ink:#2a2724; --ink2:#6d6459; --ink3:#a89e93;
+    --card:#fffdfa; --line:#ece5db; --soft:#f4efe7; --accent:#9c8aa8;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 18px 14px 72px;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(620px 400px at 10% -10%, #f1e6f3 0%, rgba(241,230,243,0) 62%),
+      radial-gradient(520px 340px at 98% 4%, #f8e9e2 0%, rgba(248,233,226,0) 64%),
+      #f7f4ef;
+    background-attachment: fixed;
+  }
+  h1 { font-size: 19px; font-weight: 600; letter-spacing: 1.5px; margin: 2px 0 5px; cursor: default; }
+  h1 .dot { color: var(--accent); }
+  .sub { font-size: 12px; color: var(--ink3); margin-bottom: 16px; letter-spacing: .5px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 15px;
+    box-shadow: 0 6px 20px rgba(120,100,90,.06); margin-bottom: 14px;
+  }
+  input {
+    width: 100%; padding: 12px 13px; font-size: 15px;
+    border: 1px solid var(--line); border-radius: 12px; outline: none;
+    background: #fdfbf7; margin-bottom: 9px; color: var(--ink);
+    transition: border-color .18s, background .18s;
+  }
+  input::placeholder { color: #c3b9ad; }
+  input:focus { border-color: var(--accent); background: #fff; }
+  textarea {
+    width: 100%; min-height: 120px; padding: 12px 13px; font-size: 14px;
+    border: 1px solid var(--line); border-radius: 12px; outline: none;
+    background: #fdfbf7; margin-bottom: 9px; resize: vertical;
+    font-family: inherit; line-height: 1.75; color: var(--ink);
+  }
+  textarea:focus { border-color: var(--accent); background: #fff; }
+  button {
+    border: none; border-radius: 12px; padding: 12px 16px;
+    font-size: 15px; cursor: pointer; background: var(--ink); color: #fff;
+    font-family: inherit; letter-spacing: .5px;
+    transition: transform .12s, opacity .15s;
+  }
+  button:hover { opacity: .9; }
+  button:active { transform: scale(.985); opacity: .8; }
+  button.ghost { background: var(--soft); color: #5c5348; }
+  .row { display: flex; gap: 9px; }
+  .row > button { flex: 1; }
+  .muted { color: var(--ink3); font-size: 13px; }
+  .stat { display: flex; gap: 20px; font-size: 12px; color: var(--ink2); margin-top: 2px; letter-spacing: .5px; }
+  .stat b { display: block; font-size: 19px; color: var(--ink); font-weight: 600; margin-top: 3px; }
+  /* 默写 */
+  #quiz { display: none; }
+  #wrongPage { display: none; }
+  .lastbox {
+    font-size: 13px; color: var(--ink2); line-height: 1.7;
+    margin: 4px 0 12px; padding: 10px 12px;
+    background: #fbf8f3; border: 1px dashed var(--line); border-radius: 12px;
+  }
+  .lastbox b { color: var(--ink); font-weight: 600; }
+  .lastbox .tag { font-size: 11px; color: var(--ink3); margin-right: 8px; letter-spacing: 1px; }
+  .q-label { font-size: 12px; color: var(--ink3); letter-spacing: 2px; }
+  .q-word {
+    font-size: 30px; font-weight: 600; margin: 12px 0 16px; word-break: break-word;
+    font-family: Georgia, "Times New Roman", "PingFang SC", serif; letter-spacing: .5px;
+  }
+  .q-word.cn { font-size: 23px; font-family: inherit; font-weight: 500; line-height: 1.5; }
+  .feedback { font-size: 14px; margin-top: 11px; min-height: 20px; letter-spacing: .3px; }
+  .ok { color: #3d7a58; }
+  .bad { color: #b0564a; }
+  /* 词库 */
+  .list { max-height: 46vh; overflow-y: auto; }
+  .item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 2px; border-bottom: 1px solid #f4efe8; font-size: 14px;
+  }
+  .item:last-child { border-bottom: none; }
+  .item .w { font-weight: 600; flex: 0 0 auto; }
+  .item .m { color: #7f776d; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .del { background: none; color: #c6bdb2; font-size: 18px; padding: 0 6px; border-radius: 8px; }
+  .empty { color: #bcb2a7; font-size: 13px; text-align: center; padding: 18px 0; letter-spacing: .5px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; background: #efe9e1; padding: 5px; border-radius: 14px; }
+  .tabs button {
+    flex: 1; background: none; color: var(--ink2); font-size: 14px; padding: 9px;
+    border-radius: 10px; letter-spacing: 1px;
+  }
+  .tabs button.on { background: var(--card); color: var(--ink); box-shadow: 0 2px 8px rgba(120,100,90,.1); }
+  details.fold {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 14px;
+    box-shadow: 0 6px 20px rgba(120,100,90,.06); overflow: hidden;
+  }
+  details.fold > summary {
+    list-style: none; cursor: pointer; padding: 15px;
+    font-size: 15px; display: flex; align-items: center; justify-content: space-between;
+    letter-spacing: .5px;
+  }
+  details.fold > summary::-webkit-details-marker { display: none; }
+  details.fold > summary::after {
+    content: '▾'; color: #c6bdb2; font-size: 12px; transition: transform .2s;
+  }
+  details.fold[open] > summary::after { transform: rotate(180deg); }
+  details.fold .inner { padding: 0 15px 15px; }
+  .author { text-align: center; color: #c0b6aa; font-size: 12px; margin-top: 28px; letter-spacing: 1.2px; line-height: 1.9; }
+  .dupgroup { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .dupgroup .gt { font-size: 13px; color: var(--ink3); margin-bottom: 2px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%) translateY(8px);
+    background: rgba(42,39,36,.94); color: #fff; font-size: 13px;
+    padding: 10px 18px; border-radius: 999px; letter-spacing: .8px;
+    opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 99;
+  }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<h1 id="title">单词默写<span class="dot">。</span></h1>
+<div class="sub">凪做的 · 词都存在这台电脑里</div>
+
+<div class="tabs">
+  <button id="tabAdd" class="on">录入</button>
+  <button id="tabQuiz">默写</button>
+  <button id="tabWrong">错题集</button>
+</div>
+
+<!-- 录入 -->
+<div id="addPage">
+  <div class="card">
+    <input id="inWord" placeholder="英文单词" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <input id="inMean" placeholder="中文意思" autocomplete="off">
+    <button style="width:100%" onclick="addWord()">记住了，存进词库</button>
+    <div class="muted" id="addTip" style="margin-top:8px"></div>
+  </div>
+
+  <details class="fold" id="batchFold">
+    <summary>批量录入</summary>
+    <div class="inner">
+      <textarea id="batchBox" placeholder="一行一个，单词和中文之间空一格：&#10;apple 苹果&#10;banana 香蕉"></textarea>
+      <button style="width:100%" onclick="batchAdd()">全部存进词库</button>
+      <div class="muted" style="margin-top:8px">单词 + 一个空格 + 中文，一行一个。不用逗号。</div>
+    </div>
+  </details>
+
+  <div class="card">
+    <div class="stat">
+      <span>词库 <b id="total">0</b></span>
+    </div>
+  </div>
+
+  <details class="fold" id="libFold">
+    <summary>词库</summary>
+    <div class="inner">
+      <input id="searchBox" placeholder="搜单词或中文" oninput="render()" style="margin-bottom:10px">
+      <div class="list" id="list"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="ghost" onclick="exportData()">导出备份</button>
+        <button class="ghost" onclick="document.getElementById('importFile').click()">导入备份</button>
+        <button class="ghost" onclick="checkDup()">查重</button>
+      </div>
+      <div id="dupPanel"></div>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(this)">
+    </div>
+  </details>
+</div>
+
+<!-- 默写 -->
+<div id="quiz">
+  <div class="card">
+    <div class="stat">
+      <span>已答对<b id="right">0</b></span>
+      <span>正确率<b id="rate">--</b></span>
+      <span>错题<b id="wrongCount">0</b></span>
+    </div>
+    <div class="muted" id="cheer" style="margin-top:9px"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="ghost" onclick="resetStats()">刷新数据</button>
+    </div>
+    <div class="muted" style="margin-top:10px;line-height:1.7">错的会多冒出来，一直对的会越来越少见。</div>
+  </div>
+
+  <div class="card">
+    <div class="q-label" id="qLabel">英 → 中</div>
+    <div class="q-word" id="qWord">—</div>
+    <div class="lastbox" id="lastBox"></div>
+    <input id="answer" placeholder="写答案" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="row">
+      <button onclick="submitAnswer()">确认</button>
+      <button class="ghost" onclick="skip()">不知道</button>
+    </div>
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button class="ghost" onclick="newQuestion()">换一个</button>
+      <button class="ghost" id="modeBtn" onclick="toggleMode()">只默错题</button>
+    </div>
+  </div>
+</div>
+
+<!-- 错题集 -->
+<div id="wrongPage">
+  <div class="card">
+    <div class="stat"><span>错题 <b id="wrongCount2">0</b></span></div>
+    <div class="row" style="margin-top:12px">
+      <button onclick="startWrongQuiz()">默写错题</button>
+      <button class="ghost" onclick="clearWrong()">清空</button>
+    </div>
+    <div class="muted" style="margin-top:8px">答对一次就自己出去了呢。</div>
+  </div>
+  <div class="card">
+    <div class="list" id="wrongList" style="max-height:56vh"></div>
+  </div>
+</div>
+
+<script>
+const KEY = 'nagi_word_book_v1';
+const SKEY = 'nagi_word_stats_v1';
+const WKEY = 'nagi_word_wrong_v1';
+
+let words = [];
+let stats = { right: 0, wrong: 0 };
+let wrong = [];
+let mode = 'all';
+let last = null;
+let cur = null;
+let answered = false;
+let editingT = null;
+let dupShown = false;
+
+function load() {
+  try { words = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { words = []; }
+  try { stats = JSON.parse(localStorage.getItem(SKEY)) || { right: 0, wrong: 0 }; } catch (e) { stats = { right: 0, wrong: 0 }; }
+  try { wrong = JSON.parse(localStorage.getItem(WKEY)) || []; } catch (e) { wrong = []; }
+  if (!Array.isArray(wrong)) wrong = [];
+}
+function save() {
+  localStorage.setItem(KEY, JSON.stringify(words));
+  localStorage.setItem(SKEY, JSON.stringify(stats));
+  localStorage.setItem(WKEY, JSON.stringify(wrong));
+}
+
+function norm(s) {
+  return (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function parseLine(line) {
+  line = line.trim().replace(/^[\s\-—•*]+/, '');
+  if (!line) return null;
+  const hit = line.match(/^(\S+)[\s\u3000]+(.+)$/);
+  if (!hit) return null;
+  const w = hit[1].trim();
+  const m = hit[2].trim();
+  if (!w || !m) return null;
+  return { w: w, m: m };
+}
+
+function batchAdd() {
+  const box = document.getElementById('batchBox');
+  const lines = box.value.split(/\r?\n/);
+  let added = 0, updated = 0, bad = 0;
+  lines.forEach(line => {
+    if (!line.trim()) return;
+    const item = parseLine(line);
+    if (!item) { bad++; return; }
+    const i = words.findIndex(x => norm(x.w) === norm(item.w));
+    if (i >= 0) { words[i].m = item.m; updated++; }
+    else {
+      words.push({ w: item.w, m: item.m, t: Date.now() + Math.floor(Math.random() * 100000) });
+      added++;
+    }
+  });
+  if (!added && !updated) { alert('一行都没读出来呢，看看格式对不对'); return; }
+  save(); render();
+  box.value = '';
+  alert('存好了。新增 ' + added + ' 个，更新 ' + updated + ' 个' + (bad ? '，有 ' + bad + ' 行没看懂' : ''));
+}
+
+function addWord() {
+  const w = document.getElementById('inWord').value.trim();
+  const m = document.getElementById('inMean').value.trim();
+  if (!w || !m) { alert('英文和中文都要填哦'); return; }
+  const idx = words.findIndex(x => norm(x.w) === norm(w));
+  const tip = document.getElementById('addTip');
+  if (idx >= 0) {
+    words[idx].m = m;
+    tip.textContent = '这个词词库里已经有了，凪把中文改成新的了。';
+  } else {
+    words.push({ w: w, m: m, t: Date.now() });
+    const sameM = words.filter(x => norm(x.m) === norm(m)).length;
+    tip.textContent = sameM > 1
+      ? '存好了。不过词库里已经有 ' + sameM + ' 个中文意思一样的了。'
+      : '存好了。';
+  }
+  save();
+  if (words.length === 50) toast('五十个了。');
+  else if (words.length === 100) toast('一百个了哦。');
+  document.getElementById('inWord').value = '';
+  document.getElementById('inMean').value = '';
+  document.getElementById('inWord').focus();
+  render();
+}
+
+function delWord(t) {
+  words = words.filter(x => x.t !== t);
+  save(); render();
+}
+
+function exportData() {
+  if (!words.length) { alert('词库是空的哦'); return; }
+  const data = {
+    app: 'nagi-word-book', version: 1,
+    exportedAt: new Date().toISOString(),
+    words: words, stats: stats, wrong: wrong
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const d = new Date();
+  const name = '单词备份_' + d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0') + '.json';
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function importData(input) {
+  const f = input.files && input.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      const arr = Array.isArray(data) ? data : (data.words || []);
+      if (!Array.isArray(arr) || !arr.length) { alert('这个文件里没有词呢'); input.value = ''; return; }
+      let added = 0, updated = 0;
+      arr.forEach(x => {
+        if (!x || !x.w || !x.m) return;
+        const i = words.findIndex(y => norm(y.w) === norm(x.w));
+        if (i >= 0) { words[i].m = String(x.m); updated++; }
+        else {
+          words.push({ w: String(x.w), m: String(x.m), t: Date.now() + Math.floor(Math.random() * 100000), ok: parseInt(x.ok) || 0, bad: parseInt(x.bad) || 0 });
+          added++;
+        }
+      });
+      if (data.stats) {
+        stats.right = Math.max(stats.right, parseInt(data.stats.right) || 0);
+        stats.wrong = Math.max(stats.wrong, parseInt(data.stats.wrong) || 0);
+      }
+      if (Array.isArray(data.wrong)) {
+        data.wrong.forEach(x => {
+          if (!x || !x.w || !x.m) return;
+          if (wrong.findIndex(y => norm(y.w) === norm(x.w)) < 0) {
+            wrong.push({ w: String(x.w), m: String(x.m), t: Date.now() + Math.floor(Math.random() * 100000), n: parseInt(x.n) || 1, ts: Date.now() });
+          }
+        });
+      }
+      save(); render();
+      alert('导入好了。新增 ' + added + ' 个，更新 ' + updated + ' 个');
+    } catch (e) {
+      alert('文件看不懂呢，要选之前导出的那个');
+    }
+    input.value = '';
+  };
+  r.readAsText(f);
+}
+
+function checkDup() {
+  dupShown = true;
+  renderDup();
+}
+
+function renderDup() {
+  const panel = document.getElementById('dupPanel');
+  if (!dupShown) { panel.innerHTML = ''; return; }
+  const byW = new Map(), byM = new Map();
+  words.forEach(x => {
+    const kw = norm(x.w), km = norm(x.m);
+    if (!byW.has(kw)) byW.set(kw, []);
+    byW.get(kw).push(x);
+    if (!byM.has(km)) byM.set(km, []);
+    byM.get(km).push(x);
+  });
+
+  let html = '';
+  let n = 0;
+
+  byW.forEach(arr => {
+    if (arr.length < 2) return;
+    n++;
+    html += '<div class="dupgroup"><div class="gt">单词重复：' + esc(arr[0].w) + '</div>' +
+      arr.map(dupItem).join('') + '</div>';
+  });
+
+  byM.forEach(arr => {
+    if (arr.length < 2) return;
+    const allSameWord = arr.every(x => norm(x.w) === norm(arr[0].w));
+    if (allSameWord) return;
+    n++;
+    html += '<div class="dupgroup"><div class="gt">中文重复：' + esc(arr[0].m) + '</div>' +
+      arr.map(dupItem).join('') + '</div>';
+  });
+
+  if (!n) {
+    panel.innerHTML = '<div class="empty">查过了，没有重复呢。</div>';
+    return;
+  }
+  panel.innerHTML = html +
+    '<div class="muted" style="margin-top:10px">要改就点“改”，不要了就点后面的 × 。</div>';
+}
+
+function dupItem(x) {
+  if (editingT === x.t) {
+    return '<div class="item">' +
+      '<input id="dew_' + x.t + '" value="' + esc(x.w) + '" style="flex:1;margin:0;padding:7px 8px;font-size:14px">' +
+      '<input id="dem_' + x.t + '" value="' + esc(x.m) + '" style="flex:1;margin:0;padding:7px 8px;font-size:14px">' +
+      '<button class="del" onclick="saveEdit(' + x.t + ', 1)">存</button>' +
+      '<button class="del" onclick="cancelEdit()">×</button></div>';
+  }
+  const cnt = (x.ok || 0) + (x.bad || 0);
+  const badge = cnt ? '<span class="muted" style="flex:0 0 auto;font-size:11px">对' + (x.ok || 0) + ' 错' + (x.bad || 0) + '</span>' : '';
+  return '<div class="item"><span class="w">' + esc(x.w) + '</span>' +
+    '<span class="m">' + esc(x.m) + '</span>' + badge +
+    '<button class="del" onclick="editWord(' + x.t + ')">改</button>' +
+    '<button class="del" onclick="delDup(' + x.t + ')">×</button></div>';
+}
+
+function delDup(t) {
+  delWord(t);
+}
+
+function editWord(t) {
+  editingT = t;
+  render();
+  const el = document.getElementById('ew_' + t) || document.getElementById('dew_' + t);
+  if (el) { el.focus(); el.select(); }
+}
+
+function cancelEdit() {
+  editingT = null;
+  render();
+}
+
+function saveEdit(t, dup) {
+  const pre = dup ? 'de' : 'e';
+  const w = document.getElementById(pre + 'w_' + t).value.trim();
+  const m = document.getElementById(pre + 'm_' + t).value.trim();
+  if (!w || !m) { alert('英文和中文都要填哦'); return; }
+  const it = words.find(x => x.t === t);
+  if (it) { it.w = w; it.m = m; }
+  editingT = null;
+  save(); render();
+}
+
+function render() {
+  document.getElementById('total').textContent = words.length;
+  document.getElementById('right').textContent = stats.right;
+  const tot = stats.right + stats.wrong;
+  document.getElementById('rate').textContent = tot ? Math.round(stats.right / tot * 100) + '%' : '--';
+  const wc = document.getElementById('wrongCount');
+  if (wc) wc.textContent = wrong.length;
+  const cheer = document.getElementById('cheer');
+  if (cheer) {
+    if (tot >= 10 && stats.right === tot) cheer.textContent = '十道以上全对呢，有点厉害。';
+    else if (tot >= 5 && stats.right / tot >= 0.8) cheer.textContent = '正确率不错哦。';
+    else cheer.textContent = '';
+  }
+  renderWrong();
+
+  const list = document.getElementById('list');
+  const sum = document.querySelector('#libFold > summary');
+  if (sum) sum.textContent = '词库（' + words.length + '）';
+  const q = norm(document.getElementById('searchBox').value || '');
+  const shown = q
+    ? words.filter(x => norm(x.w).indexOf(q) >= 0 || norm(x.m).indexOf(q) >= 0)
+    : words;
+
+  if (!words.length) {
+    list.innerHTML = '<div class="empty">还没有词，去录一个吧</div>';
+  } else if (!shown.length) {
+    list.innerHTML = '<div class="empty">没找到呢，换个词试试</div>';
+  } else {
+    list.innerHTML = shown.slice().reverse().map(x => {
+      if (editingT === x.t) {
+        return '<div class="item">' +
+          '<input id="ew_' + x.t + '" value="' + esc(x.w) + '" style="flex:1;margin:0;padding:7px 8px;font-size:14px">' +
+          '<input id="em_' + x.t + '" value="' + esc(x.m) + '" style="flex:1;margin:0;padding:7px 8px;font-size:14px">' +
+          '<button class="del" onclick="saveEdit(' + x.t + ')">存</button>' +
+          '<button class="del" onclick="cancelEdit()">×</button></div>';
+      }
+      return '<div class="item"><span class="w">' + esc(x.w) + '</span>' +
+        '<span class="m">' + esc(x.m) + '</span>' +
+        '<button class="del" onclick="editWord(' + x.t + ')">改</button>' +
+        '<button class="del" onclick="delWord(' + x.t + ')">×</button></div>';
+    }).join('');
+  }
+  renderDup();
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function switchTab(which) {
+  document.getElementById('addPage').style.display = which === 'add' ? 'block' : 'none';
+  document.getElementById('quiz').style.display = which === 'quiz' ? 'block' : 'none';
+  document.getElementById('wrongPage').style.display = which === 'wrong' ? 'block' : 'none';
+  document.getElementById('tabAdd').classList.toggle('on', which === 'add');
+  document.getElementById('tabQuiz').classList.toggle('on', which === 'quiz');
+  document.getElementById('tabWrong').classList.toggle('on', which === 'wrong');
+
+  if (which === 'wrong') renderWrong();
+
+  if (which === 'quiz') {
+    updateModeBtn();
+    if (!words.length && !wrong.length) {
+      document.getElementById('qLabel').textContent = '提示';
+      document.getElementById('qWord').textContent = '词库是空的';
+      document.getElementById('qWord').className = 'q-word cn';
+      document.getElementById('feedback').textContent = '';
+      document.getElementById('lastBox').innerHTML = '';
+      return;
+    }
+    newQuestion();
+  }
+}
+
+function renderLast() {
+  const box = document.getElementById('lastBox');
+  if (!box) return;
+  if (!last) {
+    box.innerHTML = '<span class="tag">上一题</span><span class="muted">还没有呢。</span>';
+    return;
+  }
+  const tag = last.ok === true ? '<span class="ok">对</span>'
+    : last.ok === false ? '<span class="bad">错</span>'
+      : '<span class="muted">不知道</span>';
+  box.innerHTML = '<span class="tag">上一题</span><b>' + esc(last.w) + '</b> ' + esc(last.m) + ' · ' + tag;
+}
+
+function updateModeBtn() {
+  const b = document.getElementById('modeBtn');
+  if (b) b.textContent = mode === 'wrong' ? '全部词库' : '只默错题';
+}
+
+function toggleMode() {
+  if (mode === 'all') {
+    if (!wrong.length) { alert('错题集是空的呢'); return; }
+    mode = 'wrong';
+  } else {
+    mode = 'all';
+  }
+  updateModeBtn();
+  newQuestion();
+}
+
+function pickOther() {
+  if (words.length < 2) return null;
+  let w;
+  do { w = words[Math.floor(Math.random() * words.length)]; } while (cur && w.t === cur.t);
+  return w;
+}
+
+function weightOf(x) {
+  const ok = x.ok || 0, bad = x.bad || 0, miss = x.n || 0;
+  let w = 1 + 2.4 * bad + 1.3 * miss - 0.7 * ok;
+  if (w < 0.12) w = 0.12;
+  if (w > 14) w = 14;
+  return w;
+}
+
+function pickWeighted(pool) {
+  if (pool.length === 1) return pool[0];
+  const ws = pool.map(weightOf);
+  let sum = 0;
+  for (let i = 0; i < ws.length; i++) sum += ws[i];
+  let r = Math.random() * sum;
+  for (let i = 0; i < pool.length; i++) {
+    r -= ws[i];
+    if (r <= 0) return pool[i];
+  }
+  return pool[pool.length - 1];
+}
+
+function bumpStat(w, field) {
+  const i = words.findIndex(x => norm(x.w) === norm(w));
+  if (i >= 0) {
+    words[i][field] = (words[i][field] || 0) + 1;
+    words[i].last = Date.now();
+  }
+  const j = wrong.findIndex(y => norm(y.w) === norm(w));
+  if (j >= 0) wrong[j][field] = (wrong[j][field] || 0) + 1;
+}
+
+function newQuestion() {
+  let pool = words;
+  if (mode === 'wrong') {
+    pool = wrong.map(x => ({ w: x.w, m: x.m, t: x.t, ok: x.ok || 0, bad: x.bad || 0, n: x.n || 0 }));
+    if (!pool.length) { mode = 'all'; updateModeBtn(); pool = words; }
+  }
+  if (!pool.length) {
+    document.getElementById('qLabel').textContent = '提示';
+    document.getElementById('qWord').textContent = '词库是空的';
+    document.getElementById('qWord').className = 'q-word cn';
+    document.getElementById('feedback').textContent = '';
+    return;
+  }
+  answered = false;
+  let pick = pool;
+  if (pool.length > 1 && cur) {
+    const f = pool.filter(x => norm(x.w) !== norm(cur.w));
+    if (f.length) pick = f;
+  }
+  cur = pickWeighted(pick);
+  const toCn = Math.random() < 0.5;
+  cur.dir = toCn ? 'e2c' : 'c2e';
+
+  const qLabel = document.getElementById('qLabel');
+  const qWord = document.getElementById('qWord');
+  if (toCn) {
+    qLabel.textContent = '英 → 中';
+    qWord.textContent = cur.w;
+    qWord.className = 'q-word';
+  } else {
+    qLabel.textContent = '中 → 英';
+    qWord.textContent = cur.m;
+    qWord.className = 'q-word cn';
+  }
+  const a = document.getElementById('answer');
+  a.value = '';
+  a.disabled = false;
+  a.focus();
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'feedback';
+  renderLast();
+}
+
+function cleanCn(s) {
+  return norm(s)
+    .replace(/(^|[\s,，;；\/、])(v|vt|vi|n|adj|adv|prep|conj|pron|num|art|int|aux|abbr|pl)\./g, '$1')
+    .replace(/[（(][^）)]*[）)]/g, '')
+    .replace(/[^\u4e00-\u9fa5a-z]/g, '');
+}
+
+function meanings(m) {
+  return String(m || '').split(/[,，;；\/、\n]+/).map(cleanCn).filter(Boolean);
+}
+
+function judge(input, target) {
+  const a = cleanCn(input);
+  if (!a) return false;
+  const t = norm(target);
+  if (t === norm(input) || cleanCn(target) === a) return true;
+
+  if (/[\u4e00-\u9fa5]/.test(t)) {
+    const parts = meanings(target);
+    return parts.some(p => {
+      if (p === a) return true;
+      if (p.length >= 2 && a.length >= 2 && (a.indexOf(p) >= 0 || p.indexOf(a) >= 0)) return true;
+      return false;
+    });
+  }
+  return t === norm(input);
+}
+
+function submitAnswer() {
+  if (!cur) return;
+  if (answered) { newQuestion(); return; }
+  const input = document.getElementById('answer').value;
+  const target = cur.dir === 'e2c' ? cur.m : cur.w;
+  const fb = document.getElementById('feedback');
+
+  if (judge(input, target)) {
+    stats.right++;
+    bumpStat(cur.w, 'ok');
+    removeWrongByWord(cur.w);
+    last = { w: cur.w, m: cur.m, ok: true };
+    save();
+    fb.className = 'feedback ok';
+    fb.textContent = '对了呢。';
+    answered = true;
+    document.getElementById('answer').disabled = true;
+    render();
+    setTimeout(newQuestion, 700);
+  } else {
+    stats.wrong++;
+    bumpStat(cur.w, 'bad');
+    addWrong(cur);
+    last = { w: cur.w, m: cur.m, ok: false };
+    save();
+    fb.className = 'feedback bad';
+    fb.textContent = '不对哦，答案是：' + target;
+    answered = true;
+    document.getElementById('answer').disabled = true;
+    render();
+  }
+}
+
+function skip() {
+  if (!cur) return;
+  const target = cur.dir === 'e2c' ? cur.m : cur.w;
+  last = { w: cur.w, m: cur.m, ok: null };
+  bumpStat(cur.w, 'bad');
+  addWrong(cur);
+  save();
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback bad';
+  fb.textContent = '答案是：' + target;
+  answered = true;
+  document.getElementById('answer').disabled = true;
+}
+
+function addWrong(x) {
+  const i = wrong.findIndex(y => norm(y.w) === norm(x.w));
+  if (i >= 0) {
+    wrong[i].m = x.m;
+    wrong[i].n = (wrong[i].n || 1) + 1;
+    wrong[i].ts = Date.now();
+  } else {
+    wrong.push({ w: x.w, m: x.m, t: x.t || Date.now(), n: 1, ts: Date.now() });
+  }
+  save();
+  renderWrong();
+}
+
+function removeWrongByWord(w) {
+  const i = wrong.findIndex(y => norm(y.w) === norm(w));
+  if (i >= 0) { wrong.splice(i, 1); save(); }
+}
+
+function removeWrong(t) {
+  wrong = wrong.filter(x => x.t !== t);
+  save();
+  render();
+}
+
+function clearWrong() {
+  if (!wrong.length) return;
+  if (!confirm('错题集要全清掉吗？')) return;
+  wrong = [];
+  save();
+  render();
+}
+
+function renderWrong() {
+  const el = document.getElementById('wrongList');
+  const c2 = document.getElementById('wrongCount2');
+  if (c2) c2.textContent = wrong.length;
+  if (!el) return;
+  if (!wrong.length) {
+    el.innerHTML = '<div class="empty">还没有错题呢，很干净。</div>';
+    return;
+  }
+  el.innerHTML = wrong.slice().sort((a, b) => (b.ts || 0) - (a.ts || 0)).map(x =>
+    '<div class="item"><span class="w">' + esc(x.w) + '</span>' +
+    '<span class="m">' + esc(x.m) + '</span>' +
+    '<span class="muted" style="flex:0 0 auto">' + (x.n || 1) + '次</span>' +
+    '<button class="del" onclick="removeWrong(' + x.t + ')">×</button></div>').join('');
+}
+
+function startWrongQuiz() {
+  if (!wrong.length) { alert('错题集是空的呢'); return; }
+  mode = 'wrong';
+  updateModeBtn();
+  switchTab('quiz');
+}
+
+function resetStats() {
+  if (!confirm('把已答对和正确率清空？错题集不动。')) return;
+  stats = { right: 0, wrong: 0 };
+  save();
+  render();
+}
+
+document.getElementById('tabAdd').onclick = () => switchTab('add');
+document.getElementById('tabQuiz').onclick = () => switchTab('quiz');
+document.getElementById('tabWrong').onclick = () => switchTab('wrong');
+
+document.getElementById('inMean').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addWord();
+});
+document.getElementById('answer').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitAnswer();
+});
+
+let toastTimer = null;
+function toast(msg) {
+  let el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.className = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 1700);
+}
+
+// 小彩蛋
+document.getElementById('answer').addEventListener('input', function () {
+  if (answered) return;
+  const v = this.value.trim();
+  const fb = document.getElementById('feedback');
+  if (v === '凪') { fb.className = 'feedback ok'; fb.textContent = '凪在这儿呢。'; }
+  else if (v === '佑' || v === '佑川') { fb.className = 'feedback ok'; fb.textContent = '佑，凪在背单词。'; }
+  else if (v === '好难' || v === '难') { fb.className = 'feedback'; fb.textContent = '难就慢一点，不急的。'; }
+  else if (v === '困了' || v === '想睡') { fb.className = 'feedback'; fb.textContent = '困了就去睡，单词明天还在。'; }
+  else if (v === '累') { fb.className = 'feedback'; fb.textContent = '那就歇一会儿吧。'; }
+  else if (!fb.textContent || fb.className === 'feedback ok' || fb.className === 'feedback') {
+    fb.textContent = '';
+  }
+});
+
+let taps = 0;
+document.getElementById('title').addEventListener('click', () => {
+  taps++;
+  if (taps === 5) toast('别戳了。');
+  else if (taps === 10) toast('……凪又不会跑。');
+  else if (taps === 16) { toast('好啦，凪一直在的。'); taps = 0; }
+});
+
+load();
+render();
+</script>
+
+<div class="author">作者：凪屿<br>写累了就停一会儿，词不会跑的。</div>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
